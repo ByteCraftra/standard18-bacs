@@ -12,6 +12,11 @@ export function pipeline(
   // Level 1: File-level checks
   checkFileNotEmpty(content, errors);
 
+  // If the file is empty, stop processing
+  if (errors.length > 0) {
+    return;
+  }
+
   // Split into lines
   const lines = content.split('\n').filter(line => line.trim() !== ''); // remove blank lines for now
   summary.recordCount = lines.length;

@@ -1,6 +1,7 @@
 {
   "name": "standard18-bacs",
   "private": true,
+  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "build": "turbo run build",
     "test": "vitest run",

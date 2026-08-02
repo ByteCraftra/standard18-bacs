@@ -10,19 +10,21 @@ describe('validate()', () => {
   });
 
   it('should accept a minimal valid BACS file (skeleton)', () => {
-    // A happy path test later with a fully populated file; for now we just check it doesn't crash
-    const fileContent = [
-      'VOL1                         0001                                             ',
-      'HDR1A                      0001                                             ',
-      'HDR2S                      0001                                             ',
-      'UHL1 0000000 000000                                                         ',
-      '010039123456789012       0000000000990001GBP                                 ',
-      'EOF1A                      0001                                             ',
-      'EOF2S                      0001                                             ',
-      'UTL1                         0001                                             ',
-    ].join('\n');
+    // Build lines with exact required lengths:
+    // control records = 80 characters, data record = 106 characters
+    const vol1 = 'VOL1'.padEnd(80, ' ');
+    const hdr1 = 'HDR1'.padEnd(80, ' ');
+    const hdr2 = 'HDR2'.padEnd(80, ' ');
+    const uhl1 = 'UHL1'.padEnd(80, ' ');
+    const data = '010039123456789012       0000000000990001GBP'.padEnd(106, ' ');
+    const eof1 = 'EOF1'.padEnd(80, ' ');
+    const eof2 = 'EOF2'.padEnd(80, ' ');
+    const utl1 = 'UTL1'.padEnd(80, ' ');
+
+    const fileContent = [vol1, hdr1, hdr2, uhl1, data, eof1, eof2, utl1].join('\n');
     const result = validate(fileContent);
-    // Our current validators only check lengths and order; should be no errors
+
+    // Should have no errors now
     expect(result.errors).toHaveLength(0);
   });
 
