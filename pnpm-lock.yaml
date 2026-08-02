@@ -36,6 +36,22 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(supports-color@7.2.0)
 
+  packages/parser:
+    dependencies:
+      '@standard18/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.25)(supports-color@7.2.0)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(supports-color@7.2.0)
+
   packages/shared:
     devDependencies:
       tsup:
@@ -47,6 +63,9 @@ importers:
 
   packages/validator:
     dependencies:
+      '@standard18/parser':
+        specifier: workspace:*
+        version: link:../parser
       '@standard18/shared':
         specifier: workspace:*
         version: link:../shared
