@@ -1,0 +1,41 @@
+{
+  "name": "@standard18/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@standard18/validator": "workspace:*",
+    "@standard18/parser": "workspace:*",
+    "@standard18/shared": "workspace:*",
+    "express": "^4.21.0",
+    "zod": "^3.23.0",
+    "pino": "^9.3.0",
+    "pino-pretty": "^11.2.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "multer": "^1.4.5-lts.1",
+    "swagger-ui-express": "^5.0.1",
+    "swagger-jsdoc": "^6.2.8",
+    "mime-types": "^2.1.35"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/compression": "^1.7.5",
+    "@types/multer": "^1.4.12",
+    "@types/swagger-ui-express": "^4.1.6",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/mime-types": "^2.1.4",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "tsx": "^4.19.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "vitest": "^1.6.0"
+  }
+}
