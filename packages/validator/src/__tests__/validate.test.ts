@@ -93,12 +93,114 @@ describe('validate()', () => {
 
     const content = [vol1, hdr1, hdr2, uhl1, data, eof1, eof2, utl1].join('\n');
     const result = validate(content);
-  
+
     // Debug: uncomment to see actual errors
-    // console.log(JSON.stringify(result.errors, null, 2));
+    console.log(JSON.stringify(result.errors, null, 2));
 
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it('should reject a file containing a contra (self-payment) record', () => {
+    const serial = '000001';
+    const date = ' 25001'; // space + YYDDD (6 chars)
+
+    // Build the same valid file as before, but add one contra record.
+    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
+    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
+    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
+    const uhl1 = padEnd(
+      'UHL1' +
+      '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
+      80
+    );
+
+    // Create two data records: one normal, one contra (destination == originator)
+    const normalRecord =
+      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' + date +
+      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
+
+    const contraRecord =
+      '123456' + '12345678' + '99' + '0000000000050' + '123456' + '12345678' + date +
+      padEnd('COMPANY NAME', 18) + padEnd('SELF PAYMENT', 18) + padEnd('REF003', 18) + '003';
+
+    const data = [normalRecord, contraRecord].map(r => padEnd(r, 106));
+
+    const eof1 = padEnd(
+      'EOF1A' + serial + '         ' +
+      '000000' + '0000000000000' +
+      '000002' + '0000000000150' + '                      ',
+      80
+    );
+    const eof2 = padEnd(
+      'EOF2S' + serial + '         ' +
+      '000000' + '0000000000000' +
+      '000002' + '0000000000150',
+      80
+    );
+    const utl1 = padEnd('UTL1' + serial, 80);
+
+    const content = [vol1, hdr1, hdr2, uhl1, ...data, eof1, eof2, utl1].join('\n');
+    const result = validate(content);
+    console.log(JSON.stringify(result.errors, null, 2));
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.code === 'CONTRA_NOT_ALLOWED')).toBe(true);
+    expect(result.errors).toHaveLength(1); // only the contra error (other fields valid)
+  });
+
+  it('should warn about contra debit but not reject the file', () => {
+    const serial = '000001';
+    const date = ' 25001';
+
+    // Build a valid file with two records: one normal credit, one contra debit
+    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
+    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
+    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
+    const uhl1 = padEnd(
+      'UHL1' +
+      '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
+      80
+    );
+
+    // normal credit (99)
+    const normal =
+      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' + date +
+      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
+
+    // contra debit (17) to originator
+    const contra =
+      '123456' + '12345678' + '17' + '0000000000050' + '123456' + '12345678' + date +
+      padEnd('COMPANY NAME', 18) + padEnd('CONTRA ENTRY', 18) + padEnd('REF003', 18) + '003';
+
+    const data = [normal, contra].map(r => padEnd(r, 106));
+
+    // EOF totals: 1 credit (100 pence), 1 debit (50 pence)
+    const eof1 = padEnd(
+      'EOF1A' + serial + '         ' +
+      '000001' + '0000000000050' +   // 1 debit, 50
+      '000001' + '0000000000100' +   // 1 credit, 100
+      '                      ',
+      80
+    );
+    const eof2 = padEnd(
+      'EOF2S' + serial + '         ' +
+      '000001' + '0000000000050' +
+      '000001' + '0000000000100',
+      80
+    );
+    const utl1 = padEnd('UTL1' + serial, 80);
+
+    const content = [vol1, hdr1, hdr2, uhl1, ...data, eof1, eof2, utl1].join('\n');
+    const result = validate(content);
+
+    // The file should still be valid (no errors)
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+
+    // But we expect exactly one contra warning
+    const contraWarnings = result.warnings.filter(w => w.code === 'CONTRA_DEBIT');
+    expect(contraWarnings).toHaveLength(1);
   });
 
   it('should detect a record length mismatch', () => {

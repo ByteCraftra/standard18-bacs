@@ -11,6 +11,8 @@ import { checkConsistency } from './business/consistency';
 import { checkDuplicates } from './business/duplicates';
 import { checkFieldWarnings } from './business/fieldWarnings';
 
+import { checkContra } from './business/contra';
+
 export function checkRecordLengths(lines: string[], errors: ValidationError[]): void {
   lines.forEach((line, index) => {
     const typeCode = line.substring(0, 4);
@@ -181,6 +183,8 @@ export function checkBusinessRules(
   checkConsistency(bacsFile, errors, warnings);
   checkDuplicates(bacsFile, warnings);
   checkFieldWarnings(bacsFile, warnings);
+  // --- Contra check ---
+  checkContra(bacsFile, warnings);
 
   // Duplicate references (existing logic, kept for completeness)
   const seenRefs = new Set<string>();
