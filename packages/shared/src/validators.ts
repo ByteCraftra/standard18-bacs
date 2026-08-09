@@ -11,11 +11,15 @@ export function validateAccountNumber(value: string): string | null {
 }
 
 export function validateJulianDate(value: string): string | null {
-  if (!/^\d{5}$/.test(value)) return 'Julian date must be 5 digits (YYDDD)';
-  const year = 2000 + parseInt(value.substring(0, 2), 10);
-  const day = parseInt(value.substring(2), 10);
+  // The field may be space‑padded to 6 characters – trim it.
+  const trimmed = value.trim();
+  if (!/^\d{5}$/.test(trimmed)) return 'Julian date must be 5 digits (YYDDD), possibly space‑padded';
+  const year = 2000 + parseInt(trimmed.substring(0, 2), 10);
+  const day = parseInt(trimmed.substring(2), 10);
   if (day < 1 || day > 366) return 'Invalid day of year';
-  // Additional leap year checks can go here
+  // Leap year check (simple: accept 366 only if year is a leap year)
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  if (day === 366 && !isLeap) return 'Day 366 is invalid for a non‑leap year';
   const date = new Date(year, 0);
   date.setDate(day);
   if (date.getFullYear() !== year) return 'Invalid date (year mismatch)';

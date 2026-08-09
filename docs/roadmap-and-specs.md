@@ -9,7 +9,7 @@
    - Level 2: Record order (header/trailer)  
    - Level 3: Record length checks  
    - Level 4: Field validation (allowed values, custom validators for sort code, account, date, amount, SUN)  
-   - Level 5: Basic business rules (EOF totals, duplicate references)  
+   - Level 5: Basic business rules (EOF totals, duplicate references, contra)  
 ✅ **REST API** (`apps/api`)  
    - `/validate` and `/parse` endpoints with Swagger  
    - Zod validation, file upload support, Pino logging  

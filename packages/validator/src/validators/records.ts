@@ -7,6 +7,10 @@ import {
   validateSortCode, validateAccountNumber, validateJulianDate, validateAmount, validateSun, RECORD_LENGTHS
 } from '@standard18/shared';
 
+import { checkConsistency } from './business/consistency';
+import { checkDuplicates } from './business/duplicates';
+import { checkFieldWarnings } from './business/fieldWarnings';
+
 export function checkRecordLengths(lines: string[], errors: ValidationError[]): void {
   lines.forEach((line, index) => {
     const typeCode = line.substring(0, 4);
@@ -132,18 +136,18 @@ export function checkBusinessRules(
   warnings: ValidationWarning[],
   summary: ValidationSummary,
 ): void {
+  // Populate summary
   summary.payments = bacsFile.transactions.length;
-  summary.currency = bacsFile.uhl1.currency.trim();
+  summary.currency = bacsFile.uhl1.currency.trim() || 'GBP';
   summary.processingDate = bacsFile.uhl1.processingDate || bacsFile.hdr1.processingDate;
   summary.originator = bacsFile.uhl1.originatorName.trim();
 
-  // Totals from EOF1
+  // Compute totals from EOF1 (keep existing check)
   const totalDebitCount = parseInt(bacsFile.eof1.totalDebitCount || '0', 10);
   const totalCreditCount = parseInt(bacsFile.eof1.totalCreditCount || '0', 10);
   const totalDebitAmount = parseInt(bacsFile.eof1.totalDebitAmount || '0', 10);
   const totalCreditAmount = parseInt(bacsFile.eof1.totalCreditAmount || '0', 10);
 
-  // Actual from data
   let actualDebits = 0, actualCredits = 0, sumDebits = 0, sumCredits = 0;
   bacsFile.transactions.forEach(txn => {
     const amount = parseInt(txn.amount, 10);
@@ -173,7 +177,12 @@ export function checkBusinessRules(
     });
   }
 
-  // Duplicate references
+  // --- New business checks ---
+  checkConsistency(bacsFile, errors, warnings);
+  checkDuplicates(bacsFile, warnings);
+  checkFieldWarnings(bacsFile, warnings);
+
+  // Duplicate references (existing logic, kept for completeness)
   const seenRefs = new Set<string>();
   bacsFile.transactions.forEach(txn => {
     const ref = txn.reference.trim();
