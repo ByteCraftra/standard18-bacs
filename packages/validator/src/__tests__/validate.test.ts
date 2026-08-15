@@ -208,4 +208,45 @@ describe('validate()', () => {
     const result = validate(fileContent);
     expect(result.errors.some(e => e.code === 'RECORD_LENGTH_MISMATCH')).toBe(true);
   });
+
+  it('should accept a valid 100-byte data record file using header date', () => {
+    const serial = '000001';
+    const date = ' 25001'; // space + YYDDD (6 chars)
+
+    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
+    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
+    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
+    const uhl1 = padEnd(
+      'UHL1' + '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
+      80
+    );
+
+    // 100-byte data record: no processingDate field
+    const dataRecord =
+      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' +
+      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
+    // length should be 100; ensure padEnd if needed
+    const data = padEnd(dataRecord, 100);
+
+    // EOF totals: 1 credit, 100 pence
+    const eof1 = padEnd(
+      'EOF1A' + serial + '         ' +
+      '000000' + '0000000000000' +
+      '000001' + '0000000000100' + '                      ',
+      80
+    );
+    const eof2 = padEnd(
+      'EOF2S' + serial + '         ' +
+      '000000' + '0000000000000' +
+      '000001' + '0000000000100',
+      80
+    );
+    const utl1 = padEnd('UTL1' + serial, 80);
+
+    const content = [vol1, hdr1, hdr2, uhl1, data, eof1, eof2, utl1].join('\n');
+    const result = validate(content);
+
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
 });

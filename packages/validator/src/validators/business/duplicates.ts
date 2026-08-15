@@ -7,25 +7,6 @@ export function checkDuplicates(
   bacsFile: BacsFile,
   warnings: ValidationWarning[],
 ): void {
-  // Duplicate SUNs
-  const sunMap = new Map<string, number>();
-  bacsFile.transactions.forEach((txn, idx) => {
-    const sun = txn.sun.trim();
-    if (sun) {
-      sunMap.set(sun, (sunMap.get(sun) || 0) + 1);
-    }
-  });
-  for (const [sun, count] of sunMap.entries()) {
-    if (count > 1) {
-      warnings.push({
-        code: 'DUPLICATE_SUN',
-        message: `SUN ${sun} appears ${count} times`,
-        line: 0,
-        severity: 'warning',
-      });
-    }
-  }
-
   // Duplicate amount + destination account
   const amountAccountMap = new Map<string, number>();
   bacsFile.transactions.forEach((txn) => {

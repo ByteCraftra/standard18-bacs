@@ -1,17 +1,19 @@
 import {
   ValidationError, ValidationWarning, ValidationSummary,
-  BacsFile, RecordType, TransactionCode,  // <-- add TransactionCode here
+  BacsFile, RecordType, TransactionCode,
   VOL1_FIELD_SPECS, HDR1_FIELD_SPECS, HDR2_FIELD_SPECS, UHL1_FIELD_SPECS,
-  DATA_FIELD_SPECS, EOF1_FIELD_SPECS, EOF2_FIELD_SPECS, UTL1_FIELD_SPECS,
-  FieldSpec,
-  validateSortCode, validateAccountNumber, validateJulianDate, validateAmount, validateSun, RECORD_LENGTHS
+  DATA_FIELD_SPECS_100, DATA_FIELD_SPECS_106,
+  EOF1_FIELD_SPECS, EOF2_FIELD_SPECS, UTL1_FIELD_SPECS,
+  RECORD_LENGTHS,
+  FieldSpec, 
+  validateSortCode, validateAccountNumber, validateJulianDate, validateAmount, validateSun,
 } from '@standard18/shared';
-
 import { checkConsistency } from './business/consistency';
 import { checkDuplicates } from './business/duplicates';
 import { checkFieldWarnings } from './business/fieldWarnings';
-
 import { checkContra } from './business/contra';
+
+// ... existing checkRecordLengths and checkRecordOrder remain, but ensure they import RECORD_LENGTHS
 
 export function checkRecordLengths(lines: string[], errors: ValidationError[]): void {
   lines.forEach((line, index) => {
@@ -19,14 +21,27 @@ export function checkRecordLengths(lines: string[], errors: ValidationError[]): 
     const recordType = Object.values(RecordType).includes(typeCode as RecordType)
       ? (typeCode as RecordType)
       : undefined;
-    const expectedLength = recordType ? RECORD_LENGTHS[recordType] : 106; // DATA is 106
-    if (line.length !== expectedLength) {
-      errors.push({
-        code: 'RECORD_LENGTH_MISMATCH',
-        message: `Line ${index + 1}: expected ${expectedLength} characters, got ${line.length}`,
-        line: index + 1,
-        severity: 'error',
-      });
+
+    if (recordType) {
+      const expected = RECORD_LENGTHS[recordType];
+      if (line.length !== expected) {
+        errors.push({
+          code: 'RECORD_LENGTH_MISMATCH',
+          message: `Line ${index + 1}: expected ${expected} characters, got ${line.length}`,
+          line: index + 1,
+          severity: 'error',
+        });
+      }
+    } else {
+      // Data record – accept 100 or 106
+      if (line.length !== 100 && line.length !== 106) {
+        errors.push({
+          code: 'RECORD_LENGTH_MISMATCH',
+          message: `Line ${index + 1}: expected data record length of 100 or 106, got ${line.length}`,
+          line: index + 1,
+          severity: 'error',
+        });
+      }
     }
   });
 }
@@ -85,31 +100,27 @@ function validateRecord(record: Record<string, string>, specs: FieldSpec[], line
         severity: 'error',
       });
     }
-    // Custom validator based on field name (we can extend)
-    switch (spec.name) {
-      case 'destinationSortCode':
-      case 'originatorSortCode':
-        const sortErr = validateSortCode(rawValue);
-        if (sortErr) errors.push({ code: 'INVALID_SORT_CODE', message: `${prefix}: ${sortErr}`, line, field: spec.name, severity: 'error' });
-        break;
-      case 'destinationAccountNumber':
-      case 'originatorAccountNumber':
-        const accErr = validateAccountNumber(rawValue);
-        if (accErr) errors.push({ code: 'INVALID_ACCOUNT', message: `${prefix}: ${accErr}`, line, field: spec.name, severity: 'error' });
-        break;
-      case 'processingDate':
-        const dateErr = validateJulianDate(rawValue);
-        if (dateErr) errors.push({ code: 'INVALID_DATE', message: `${prefix}: ${dateErr}`, line, field: spec.name, severity: 'error' });
-        break;
-      case 'amount':
-        const amtErr = validateAmount(rawValue);
-        if (amtErr) errors.push({ code: 'INVALID_AMOUNT', message: `${prefix}: ${amtErr}`, line, field: spec.name, severity: 'error' });
-        break;
-      case 'sun':
-        const sunErr = validateSun(rawValue);
-        if (sunErr) errors.push({ code: 'INVALID_SUN', message: `${prefix}: ${sunErr}`, line, field: spec.name, severity: 'error' });
-        break;
-      // No default: other fields are just checked for allowed values
+
+    // Generic custom validators based on field type/name
+    if (spec.type === 'date') {
+      const dateErr = validateJulianDate(rawValue);
+      if (dateErr) errors.push({ code: 'INVALID_DATE', message: `${prefix}: ${dateErr}`, line, field: spec.name, severity: 'error' });
+    }
+    if (spec.name.toLowerCase().includes('sortcode')) {
+      const sortErr = validateSortCode(rawValue);
+      if (sortErr) errors.push({ code: 'INVALID_SORT_CODE', message: `${prefix}: ${sortErr}`, line, field: spec.name, severity: 'error' });
+    }
+    if (spec.name.toLowerCase().includes('accountnumber')) {
+      const accErr = validateAccountNumber(rawValue);
+      if (accErr) errors.push({ code: 'INVALID_ACCOUNT', message: `${prefix}: ${accErr}`, line, field: spec.name, severity: 'error' });
+    }
+    if (spec.name === 'amount') {
+      const amtErr = validateAmount(rawValue);
+      if (amtErr) errors.push({ code: 'INVALID_AMOUNT', message: `${prefix}: ${amtErr}`, line, field: spec.name, severity: 'error' });
+    }
+    if (spec.name === 'sun') {
+      const sunErr = validateSun(rawValue);
+      if (sunErr) errors.push({ code: 'INVALID_SUN', message: `${prefix}: ${sunErr}`, line, field: spec.name, severity: 'error' });
     }
   }
 }
@@ -120,12 +131,11 @@ export function checkFieldValidators(bacsFile: BacsFile, errors: ValidationError
   validateRecord(bacsFile.hdr2 as unknown as Record<string, string>, HDR2_FIELD_SPECS, 3, 'HDR2', errors);
   validateRecord(bacsFile.uhl1 as unknown as Record<string, string>, UHL1_FIELD_SPECS, 4, 'UHL1', errors);
 
-  // Data records start at line 5
+  const dataSpecs = bacsFile.dataRecordLength === 100 ? DATA_FIELD_SPECS_100 : DATA_FIELD_SPECS_106;
   bacsFile.transactions.forEach((txn, idx) => {
-    validateRecord(txn as unknown as Record<string, string>, DATA_FIELD_SPECS, 5 + idx, `TX[${idx + 1}]`, errors);
+    validateRecord(txn as unknown as Record<string, string>, dataSpecs, 5 + idx, `TX[${idx+1}]`, errors);
   });
 
-  // Trailer records: assume they are at lines after all transactions
   const trailerStart = 5 + bacsFile.transactions.length;
   validateRecord(bacsFile.eof1 as unknown as Record<string, string>, EOF1_FIELD_SPECS, trailerStart, 'EOF1', errors);
   validateRecord(bacsFile.eof2 as unknown as Record<string, string>, EOF2_FIELD_SPECS, trailerStart + 1, 'EOF2', errors);
@@ -138,17 +148,17 @@ export function checkBusinessRules(
   warnings: ValidationWarning[],
   summary: ValidationSummary,
 ): void {
-  // Populate summary
   summary.payments = bacsFile.transactions.length;
-  summary.currency = bacsFile.uhl1.currency.trim() || 'GBP';
-  summary.processingDate = bacsFile.uhl1.processingDate || bacsFile.hdr1.processingDate;
-  summary.originator = bacsFile.uhl1.originatorName.trim();
+  summary.currency = 'GBP'; // or from UHL1 if available
+  summary.processingDate = bacsFile.uhl1.processingDate || '';
+  summary.originator = ''; // not directly available in new UHL1
+  summary.recordCount = 0; // filled elsewhere
 
-  // Compute totals from EOF1 (keep existing check)
-  const totalDebitCount = parseInt(bacsFile.eof1.totalDebitCount || '0', 10);
-  const totalCreditCount = parseInt(bacsFile.eof1.totalCreditCount || '0', 10);
-  const totalDebitAmount = parseInt(bacsFile.eof1.totalDebitAmount || '0', 10);
-  const totalCreditAmount = parseInt(bacsFile.eof1.totalCreditAmount || '0', 10);
+  // UTL1 totals
+  const totalDebitCount = parseInt(bacsFile.utl1.totalDebitCount || '0', 10);
+  const totalCreditCount = parseInt(bacsFile.utl1.totalCreditCount || '0', 10);
+  const totalDebitAmount = parseInt(bacsFile.utl1.totalDebitAmount || '0', 10);
+  const totalCreditAmount = parseInt(bacsFile.utl1.totalCreditAmount || '0', 10);
 
   let actualDebits = 0, actualCredits = 0, sumDebits = 0, sumCredits = 0;
   bacsFile.transactions.forEach(txn => {
@@ -164,29 +174,28 @@ export function checkBusinessRules(
 
   if (actualDebits !== totalDebitCount || sumDebits !== totalDebitAmount) {
     errors.push({
-      code: 'EOF_DEBIT_MISMATCH',
-      message: 'Debit totals in EOF do not match computed values',
+      code: 'UTL_DEBIT_MISMATCH',
+      message: 'Debit totals in UTL1 do not match computed values',
       line: 0,
       severity: 'error',
     });
   }
   if (actualCredits !== totalCreditCount || sumCredits !== totalCreditAmount) {
     errors.push({
-      code: 'EOF_CREDIT_MISMATCH',
-      message: 'Credit totals in EOF do not match computed values',
+      code: 'UTL_CREDIT_MISMATCH',
+      message: 'Credit totals in UTL1 do not match computed values',
       line: 0,
       severity: 'error',
     });
   }
 
-  // --- New business checks ---
+  // Additional business checks
   checkConsistency(bacsFile, errors, warnings);
   checkDuplicates(bacsFile, warnings);
   checkFieldWarnings(bacsFile, warnings);
-  // --- Contra check ---
   checkContra(bacsFile, warnings);
 
-  // Duplicate references (existing logic, kept for completeness)
+  // Duplicate references (keep)
   const seenRefs = new Set<string>();
   bacsFile.transactions.forEach(txn => {
     const ref = txn.reference.trim();

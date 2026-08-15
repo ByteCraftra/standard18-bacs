@@ -7,104 +7,111 @@ export interface FieldSpec {
   type: 'string' | 'number' | 'date' | 'code';
   required?: boolean;
   allowedValues?: readonly string[];
-  padChar?: string; // expected padding character
+  padChar?: string;
   padSide?: 'left' | 'right';
   description?: string;
-  validator?: (value: string) => string | null; // returns error message or null
+  validator?: (value: string) => string | null;
 }
 
-// --- VOL1 ---
+// --- VOL1 (80 bytes) ---
 export const VOL1_FIELD_SPECS: FieldSpec[] = [
-  { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['VOL1'], padSide: 'right', padChar: ' ', description: 'Must be VOL1' },
-  { name: 'serialNumber', start: 4, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0', description: 'File serial number (000001-999999)' },
-  { name: 'accessibility', start: 10, length: 1, type: 'code', allowedValues: [' ', 'A', 'B'], padSide: 'right', padChar: ' ', description: 'Accessibility indicator' },
-  { name: 'fileLabel', start: 11, length: 20, type: 'string', required: true, padSide: 'right', padChar: ' ', description: 'User‑defined file label' },
-  { name: 'reserved1', start: 31, length: 4, type: 'string', padSide: 'right', padChar: ' ', description: 'Reserved' },
-  { name: 'fileType', start: 35, length: 1, type: 'code', allowedValues: ['0', '1'], padSide: 'right', padChar: ' ', description: 'File type (0=production, 1=test)' },
-  { name: 'reserved2', start: 36, length: 12, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'format', start: 48, length: 1, type: 'code', allowedValues: ['S'], padSide: 'right', padChar: ' ', description: 'Standard format indicator' },
-  { name: 'reserved3', start: 49, length: 31, type: 'string', padSide: 'right', padChar: ' ' },
+  { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['VOL1'] },
+  { name: 'serialNumber', start: 4, length: 6, type: 'string', required: true },
+  { name: 'accessibility', start: 10, length: 1, type: 'string' },
+  { name: 'reserved1', start: 11, length: 26, type: 'string' },
+  { name: 'reserved2', start: 37, length: 4, type: 'string' },
+  { name: 'sun', start: 41, length: 6, type: 'string', required: true },
+  { name: 'reserved3', start: 47, length: 4, type: 'string' },
+  { name: 'reserved4', start: 51, length: 28, type: 'string' },
+  { name: 'format', start: 79, length: 1, type: 'string', allowedValues: ['1'] },
 ];
 
-// --- HDR1 ---
+// --- HDR1 (80 bytes) ---
 export const HDR1_FIELD_SPECS: FieldSpec[] = [
   { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['HDR1'] },
-  { name: 'fileIdentifier', start: 4, length: 1, type: 'code', allowedValues: ['A'], description: 'File identifier A' },
-  { name: 'serialNumber', start: 5, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'processingDate', start: 11, length: 6, type: 'date', required: true, description: 'YYDDD' },
-  { name: 'reserved1', start: 17, length: 1, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'fileNumber', start: 18, length: 6, type: 'string', padSide: 'left', padChar: '0', description: 'File number' },
-  { name: 'reserved2', start: 24, length: 56, type: 'string', padSide: 'right', padChar: ' ' },
+  { name: 'fileIdentifier', start: 4, length: 1, type: 'string', allowedValues: ['A'] },
+  { name: 'sun', start: 5, length: 6, type: 'string', required: true },
+  { name: 'fileIdentifier2', start: 11, length: 1, type: 'string', allowedValues: ['S'] },
+  { name: 'reserved1', start: 12, length: 2, type: 'string' },
+  { name: 'reserved2', start: 14, length: 1, type: 'string' },
+  { name: 'reserved3', start: 15, length: 6, type: 'string' },
+  { name: 'serialNumber', start: 21, length: 6, type: 'string', required: true },
+  { name: 'fileSectionNumber', start: 27, length: 4, type: 'string', required: true },
+  { name: 'fileSequenceNumber', start: 31, length: 4, type: 'string', required: true },
+  { name: 'generationNumber', start: 35, length: 4, type: 'string' },
+  { name: 'generationVersion', start: 39, length: 2, type: 'string' },
+  { name: 'creationDate', start: 41, length: 6, type: 'date', required: true },
+  { name: 'expirationDate', start: 47, length: 6, type: 'date', required: true },
+  { name: 'accessibility', start: 53, length: 1, type: 'string' },
+  { name: 'blockCount', start: 54, length: 6, type: 'string' },
+  { name: 'systemCode', start: 60, length: 13, type: 'string' },
+  { name: 'reserved4', start: 73, length: 7, type: 'string' },
 ];
 
-// --- HDR2 ---
+// --- HDR2 (80 bytes) ---
 export const HDR2_FIELD_SPECS: FieldSpec[] = [
   { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['HDR2'] },
-  { name: 'fileIdentifier', start: 4, length: 1, type: 'code', allowedValues: ['S'], description: 'File identifier S' },
-  { name: 'serialNumber', start: 5, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'workCode', start: 11, length: 1, type: 'code', allowedValues: ['0', '1', ' '], padSide: 'right', padChar: ' ', description: 'Work code (0=live, 1=test)' },
-  { name: 'reserved1', start: 12, length: 68, type: 'string', padSide: 'right', padChar: ' ' },
+  { name: 'format', start: 4, length: 1, type: 'string', allowedValues: ['F'] },
+  { name: 'blockLength', start: 5, length: 5, type: 'string', required: true },
+  { name: 'recordLength', start: 10, length: 5, type: 'string', required: true, allowedValues: ['00100'] },
+  { name: 'reserved1', start: 15, length: 35, type: 'string' },
+  { name: 'bufferOffset', start: 50, length: 2, type: 'string' },
+  { name: 'reserved2', start: 52, length: 28, type: 'string' },
 ];
 
-// --- UHL1 ---
+// --- UHL1 (80 bytes) ---
 export const UHL1_FIELD_SPECS: FieldSpec[] = [
   { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['UHL1'] },
-  { name: 'originatorSortCode', start: 4, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved1', start: 10, length: 2, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'originatorAccountNumber', start: 12, length: 8, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved2', start: 20, length: 2, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'originatorName', start: 22, length: 18, type: 'string', padSide: 'right', padChar: ' ', description: 'Originator name' },
-  { name: 'reserved3', start: 40, length: 4, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'processingDate', start: 44, length: 6, type: 'date', required: true },
-  { name: 'reserved4', start: 50, length: 6, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'currency', start: 56, length: 3, type: 'code', allowedValues: ['GBP', 'EUR', 'USD'], padSide: 'right', padChar: ' ' },
-  { name: 'reserved5', start: 59, length: 21, type: 'string', padSide: 'right', padChar: ' ' },
+  { name: 'processingDate', start: 4, length: 6, type: 'date', required: true },
+  { name: 'reserved1', start: 10, length: 10, type: 'string' },
+  { name: 'currencyCode', start: 20, length: 2, type: 'string', allowedValues: ['00'] },
+  { name: 'countryCode', start: 22, length: 6, type: 'string', required: true },
+  { name: 'workCode', start: 28, length: 9, type: 'string', required: true },
+  { name: 'fileNumber', start: 37, length: 3, type: 'string', required: true },
+  { name: 'reserved2', start: 40, length: 7, type: 'string' },
+  { name: 'auditPrintIdentifier', start: 47, length: 7, type: 'string' },
+  { name: 'userBureau', start: 54, length: 26, type: 'string' },
 ];
 
-// --- Data Record ---
-export const DATA_FIELD_SPECS: FieldSpec[] = [
-  { name: 'destinationSortCode', start: 0, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'destinationAccountNumber', start: 6, length: 8, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'transactionCode', start: 14, length: 2, type: 'code', allowedValues: Object.values(TransactionCode), padSide: 'right', padChar: ' ' },
-  { name: 'amount', start: 16, length: 13, type: 'number', required: true, padSide: 'left', padChar: '0', description: 'In pence, zero‑filled' },
-  { name: 'originatorSortCode', start: 29, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'originatorAccountNumber', start: 35, length: 8, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'processingDate', start: 43, length: 6, type: 'date', required: true },
-  { name: 'originatorName', start: 49, length: 18, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'destinationName', start: 67, length: 18, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'reference', start: 85, length: 18, type: 'string', padSide: 'right', padChar: ' ', description: 'Payment reference' },
-  { name: 'sun', start: 103, length: 3, type: 'string', required: true, padSide: 'left', padChar: '0', description: 'Service User Number (SUN)' },
-];
+// --- EOF1 (80 bytes) – Same structure as HDR1 but with label EOF1 ---
+export const EOF1_FIELD_SPECS: FieldSpec[] = HDR1_FIELD_SPECS.map(spec => ({
+  ...spec,
+  name: spec.name === 'label' ? 'label' : spec.name,
+  allowedValues: spec.name === 'label' ? ['EOF1'] : spec.allowedValues,
+}));
 
-// --- EOF1 ---
-export const EOF1_FIELD_SPECS: FieldSpec[] = [
-  { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['EOF1'] },
-  { name: 'fileIdentifier', start: 4, length: 1, type: 'code', allowedValues: ['A'] },
-  { name: 'serialNumber', start: 5, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved1', start: 11, length: 9, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'totalDebitCount', start: 20, length: 6, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalDebitAmount', start: 26, length: 13, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalCreditCount', start: 39, length: 6, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalCreditAmount', start: 45, length: 13, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved2', start: 58, length: 22, type: 'string', padSide: 'right', padChar: ' ' },
-];
+// --- EOF2 (80 bytes) – Same structure as HDR2 but with label EOF2 ---
+export const EOF2_FIELD_SPECS: FieldSpec[] = HDR2_FIELD_SPECS.map(spec => ({
+  ...spec,
+  name: spec.name === 'label' ? 'label' : spec.name,
+  allowedValues: spec.name === 'label' ? ['EOF2'] : spec.allowedValues,
+}));
 
-// --- EOF2 ---
-export const EOF2_FIELD_SPECS: FieldSpec[] = [
-  { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['EOF2'] },
-  { name: 'fileIdentifier', start: 4, length: 1, type: 'code', allowedValues: ['S'] },
-  { name: 'serialNumber', start: 5, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved1', start: 11, length: 9, type: 'string', padSide: 'right', padChar: ' ' },
-  { name: 'totalDebitCount', start: 20, length: 6, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalDebitAmount', start: 26, length: 13, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalCreditCount', start: 39, length: 6, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'totalCreditAmount', start: 45, length: 13, type: 'number', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved2', start: 58, length: 22, type: 'string', padSide: 'right', padChar: ' ' },
-];
-
-// --- UTL1 ---
+// --- UTL1 (80 bytes) ---
 export const UTL1_FIELD_SPECS: FieldSpec[] = [
   { name: 'label', start: 0, length: 4, type: 'string', allowedValues: ['UTL1'] },
-  { name: 'serialNumber', start: 4, length: 6, type: 'string', required: true, padSide: 'left', padChar: '0' },
-  { name: 'reserved1', start: 10, length: 70, type: 'string', padSide: 'right', padChar: ' ' },
+  { name: 'totalDebitAmount', start: 4, length: 13, type: 'number', required: true },
+  { name: 'totalCreditAmount', start: 17, length: 13, type: 'number', required: true },
+  { name: 'totalDebitCount', start: 30, length: 7, type: 'number', required: true },
+  { name: 'totalCreditCount', start: 37, length: 7, type: 'number', required: true },
+  { name: 'reserved1', start: 44, length: 10, type: 'string' },
+  { name: 'reserved2', start: 54, length: 26, type: 'string' },
 ];
+
+// --- Data Record (100 bytes) ---
+export const DATA_FIELD_SPECS_100: FieldSpec[] = [
+  { name: 'destinationSortCode', start: 0, length: 6, type: 'string', required: true },
+  { name: 'destinationAccountNumber', start: 6, length: 8, type: 'string', required: true },
+  { name: 'typeOfAccount', start: 14, length: 1, type: 'string', required: true },
+  { name: 'transactionCode', start: 15, length: 2, type: 'code', allowedValues: Object.values(TransactionCode) },
+  { name: 'originatorSortCode', start: 17, length: 6, type: 'string', required: true },
+  { name: 'originatorAccountNumber', start: 23, length: 8, type: 'string', required: true },
+  { name: 'freeFormat', start: 31, length: 4, type: 'string' },
+  { name: 'amount', start: 35, length: 11, type: 'number', required: true },
+  { name: 'originatorName', start: 46, length: 18, type: 'string' },
+  { name: 'reference', start: 64, length: 18, type: 'string' },
+  { name: 'destinationName', start: 82, length: 18, type: 'string' },
+];
+
+// Keep a placeholder for 106-byte records (unused in current files)
+export const DATA_FIELD_SPECS_106: FieldSpec[] = DATA_FIELD_SPECS_100; // will be replaced if needed
