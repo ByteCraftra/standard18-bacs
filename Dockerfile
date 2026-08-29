@@ -41,7 +41,7 @@ COPY --from=builder /app/packages/analyzer/dist packages/analyzer/dist
 COPY --from=builder /app/packages/analyzer/package.json packages/analyzer/package.json
 
 # Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
 # Expose port
 EXPOSE 3000
