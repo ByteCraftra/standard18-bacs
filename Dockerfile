@@ -11,6 +11,7 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/parser/package.json packages/parser/package.json
 COPY packages/validator/package.json packages/validator/package.json
 COPY packages/analyzer/package.json packages/analyzer/package.json
+COPY packages/repair/package.json packages/repair/package.json
 
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
@@ -39,6 +40,8 @@ COPY --from=builder /app/packages/validator/dist packages/validator/dist
 COPY --from=builder /app/packages/validator/package.json packages/validator/package.json
 COPY --from=builder /app/packages/analyzer/dist packages/analyzer/dist
 COPY --from=builder /app/packages/analyzer/package.json packages/analyzer/package.json
+COPY --from=builder /app/packages/repair/dist packages/repair/dist
+COPY --from=builder /app/packages/repair/package.json packages/repair/package.json
 
 # Install only production dependencies
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
