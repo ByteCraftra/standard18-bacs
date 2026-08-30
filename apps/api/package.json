@@ -14,6 +14,7 @@
     "@standard18/validator": "workspace:*",
     "@standard18/parser": "workspace:*",
     "@standard18/shared": "workspace:*",
+    "@standard18/repair": "workspace:*",
     "express": "^4.21.0",
     "zod": "^3.23.0",
     "pino": "^9.3.0",
