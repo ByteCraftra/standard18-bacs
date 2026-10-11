@@ -1,4 +1,4 @@
-import { RecordType, TransactionCode, CurrencyCode, WorkCode } from './types';
+import { TransactionCode } from './types';
 
 export interface FieldSpec {
   name: string;

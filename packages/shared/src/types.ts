@@ -20,9 +20,14 @@ export enum CurrencyCode {
   USD = 'USD',
 }
 
+// export enum WorkCode {
+//   LIVE = '0',
+//   TEST = '1',
+// }
+
 export enum WorkCode {
-  LIVE = '0',
-  TEST = '1',
+  MULTI = '4',
+  SINGLE = '1',
 }
 
 export interface Vol1 {
