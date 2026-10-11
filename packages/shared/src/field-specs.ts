@@ -117,3 +117,4 @@ export const DATA_FIELD_SPECS_100: FieldSpec[] = [
 
 // --- Data Record (106 bytes, placeholder) ---
 export const DATA_FIELD_SPECS_106: FieldSpec[] = DATA_FIELD_SPECS_100; // to be defined later
+// -- - END OF FILE ---
