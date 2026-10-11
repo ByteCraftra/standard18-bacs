@@ -1,13 +1,14 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/app.ts', 'src/index.ts'],
   format: ['cjs'],
   dts: false,
-  external: [
-    '@standard18/validator',
-    '@standard18/parser',
-    '@standard18/shared',
-  ],
   clean: true,
+  noExternal: [
+    '@standard18/shared',
+    '@standard18/parser',
+    '@standard18/validator',
+    '@standard18/analyzer',
+  ],
 });

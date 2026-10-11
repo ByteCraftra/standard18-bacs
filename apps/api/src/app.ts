@@ -2,12 +2,12 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import { requestLogger } from './middleware/requestLogger';
+import { requestLogger, globalmiddleware } from './middleware/requestLogger';
 import { errorHandler } from './middleware/errorHandler';
 import { apiRouter } from './routes';
 import { setupSwagger } from './swagger';
 
-export const app:Express = express();
+export const app: Express = express();
 
 // Security & performance middlewares
 app.use(helmet());
@@ -18,6 +18,8 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.text({ limit: '10mb', type: 'text/plain' }));
 
+// Global middleware (if any)
+app.use(globalmiddleware);
 // Request logging (Pino)
 app.use(requestLogger);
 

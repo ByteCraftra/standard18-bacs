@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/api/.env.local
+    environment:
+      NODE_ENV: local
+    volumes:
+      - ./apps/api/.env.local:/app/apps/api/.env.local   # optional mount for live changes
+      - ./apps/api/src:/app/apps/api/src                 # optional source mount
+    command: pnpm --filter @standard18/api dev
+    restart: unless-stopped
