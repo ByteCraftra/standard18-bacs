@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../src/parse';
+import { parse } from '../parse';
 
 describe('parse', () => {
   it('parses a minimal 100-byte BACS file', () => {
