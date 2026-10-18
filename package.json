@@ -1,13 +1,15 @@
 {
   "name": "standard18-bacs",
   "private": true,
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "build": "turbo run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "start": "pnpm build && node apps/api/dist/index.js"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",

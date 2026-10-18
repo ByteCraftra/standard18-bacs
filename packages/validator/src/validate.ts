@@ -1,9 +1,14 @@
-import { ValidationResult, ValidationSummary, ValidationError } from '@standard18/shared';
+import {
+  ValidationResult,
+  ValidationSummary,
+  ValidationError,
+  ValidationWarning,   
+} from '@standard18/shared';
 import { pipeline } from './pipeline';
 
 export function validate(content: string): ValidationResult {
   const errors: ValidationError[] = [];
-  const warnings = [];
+  const warnings: ValidationWarning[] = [];   // <-- add type annotation
   const summary: ValidationSummary = {
     payments: 0,
     totalAmount: 0,

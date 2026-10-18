@@ -18,7 +18,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@standard18/shared": "workspace:*"
+    "@standard18/shared": "workspace:*",
+    "@standard18/parser": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
