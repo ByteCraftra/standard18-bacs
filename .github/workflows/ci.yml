@@ -13,7 +13,6 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
-  PNPM_VERSION: '12.14.0'
 
 jobs:
   build-and-test:
@@ -22,9 +21,7 @@ jobs:
     timeout-minutes: 20
 
     env:
-      # Prevent husky from trying to install git hooks in CI
       HUSKY: '0'
-      # Disable Turbo telemetry noise
       TURBO_TELEMETRY_DISABLED: '1'
 
     steps:
@@ -33,11 +30,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ⬇️ No `version` here — action reads packageManager from package.json
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -72,11 +67,11 @@ jobs:
 
       - name: Check formatting
         run: pnpm format:check
-        continue-on-error: true   # first pass – make hard-fail once code is clean
+        continue-on-error: true
 
       - name: Lint
         run: pnpm lint
-        continue-on-error: true   # ESLint v8 is deprecated; will be tightened later
+        continue-on-error: true
 
       - name: Build all packages
         run: pnpm build

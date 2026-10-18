@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BacsFile, RecordType } from '@standard18/shared';
-import { analyze } from '../src/analyzer';
+import { analyze } from '../analyzer';
 
 function createMockBacsFile(): BacsFile {
   return {
@@ -10,11 +10,11 @@ function createMockBacsFile(): BacsFile {
       label: 'VOL1',
       serialNumber: '174666',
       accessibility: ' ',
-      reserved1: ' ',
-      reserved2: ' ',
+      reserved1: ' '.repeat(26),
+      reserved2: '    ',
       sun: '098765',
-      reserved3: ' ',
-      reserved4: ' ',
+      reserved3: '    ',
+      reserved4: ' '.repeat(28),
       format: '1',
     },
     hdr1: {
@@ -23,20 +23,20 @@ function createMockBacsFile(): BacsFile {
       fileIdentifier: 'A',
       sun: '098765',
       fileIdentifier2: 'S',
-      reserved1: ' ',
+      reserved1: '  ',
       reserved2: ' ',
-      reserved3: ' ',
+      reserved3: '      ',
       serialNumber: '174666',
       fileSectionNumber: '0001',
       fileSequenceNumber: '0001',
-      generationNumber: ' ',
-      generationVersion: ' ',
+      generationNumber: '    ',
+      generationVersion: '  ',
       creationDate: ' 26226',
       expirationDate: ' 26257',
       accessibility: ' ',
       blockCount: '000000',
-      systemCode: ' ',
-      reserved4: ' ',
+      systemCode: ' '.repeat(13),
+      reserved4: ' '.repeat(7),
     },
     hdr2: {
       type: RecordType.HDR2,
@@ -44,22 +44,22 @@ function createMockBacsFile(): BacsFile {
       format: 'F',
       blockLength: '02000',
       recordLength: '00100',
-      reserved1: ' ',
+      reserved1: ' '.repeat(35),
       bufferOffset: '00',
-      reserved2: ' ',
+      reserved2: ' '.repeat(28),
     },
     uhl1: {
       type: RecordType.UHL1,
       label: 'UHL1',
       processingDate: ' 26229',
-      reserved1: ' ',
+      reserved1: ' '.repeat(10),
       currencyCode: '00',
       countryCode: '000000',
       workCode: '1 DAILY  ',
       fileNumber: '910',
-      reserved2: ' ',
-      auditPrintIdentifier: ' ',
-      userBureau: ' ',
+      reserved2: ' '.repeat(7),
+      auditPrintIdentifier: ' '.repeat(7),
+      userBureau: ' '.repeat(26),
     },
     transactions: [
       {
@@ -70,8 +70,8 @@ function createMockBacsFile(): BacsFile {
         transactionCode: '99',
         originatorSortCode: '345678',
         originatorAccountNumber: '09876543',
-        freeFormat: ' ',
-        amount: '00000070000',   // £700.00
+        freeFormat: '    ',
+        amount: '00000070000',
         originatorName: 'AC LTD',
         reference: 'AC-1231',
         destinationName: 'SURGEON 1',
@@ -85,9 +85,9 @@ function createMockBacsFile(): BacsFile {
         transactionCode: '17',
         originatorSortCode: '345678',
         originatorAccountNumber: '09876543',
-        freeFormat: ' ',
+        freeFormat: '    ',
         amount: '00000070000',
-        originatorName: ' ',
+        originatorName: '',
         reference: 'CONTRA',
         destinationName: 'AC LTD',
         processingDate: ' 26229',
@@ -99,20 +99,20 @@ function createMockBacsFile(): BacsFile {
       fileIdentifier: 'A',
       sun: '098765',
       fileIdentifier2: 'S',
-      reserved1: ' ',
+      reserved1: '  ',
       reserved2: ' ',
-      reserved3: ' ',
+      reserved3: '      ',
       serialNumber: '174666',
       fileSectionNumber: '0001',
       fileSequenceNumber: '0001',
-      generationNumber: ' ',
-      generationVersion: ' ',
+      generationNumber: '    ',
+      generationVersion: '  ',
       creationDate: ' 26226',
       expirationDate: ' 26257',
       accessibility: ' ',
-      blockCount: ' ',
-      systemCode: ' ',
-      reserved4: ' ',
+      blockCount: '      ',
+      systemCode: ' '.repeat(13),
+      reserved4: ' '.repeat(7),
     },
     eof2: {
       type: RecordType.EOF2,
@@ -120,9 +120,9 @@ function createMockBacsFile(): BacsFile {
       format: 'F',
       blockLength: '02000',
       recordLength: '00100',
-      reserved1: ' ',
+      reserved1: ' '.repeat(35),
       bufferOffset: '00',
-      reserved2: ' ',
+      reserved2: ' '.repeat(28),
     },
     utl1: {
       type: RecordType.UTL1,
@@ -131,8 +131,8 @@ function createMockBacsFile(): BacsFile {
       totalCreditAmount: '0000000070000',
       totalDebitCount: '0000001',
       totalCreditCount: '0000001',
-      reserved1: ' ',
-      reserved2: ' ',
+      reserved1: ' '.repeat(10),
+      reserved2: ' '.repeat(26),
     },
   };
 }
@@ -151,22 +151,26 @@ describe('analyze', () => {
   });
 
   it('should identify duplicate references and duplicate amount+account', () => {
-    // Modify to create a duplicate
     const file = createMockBacsFile();
     file.transactions.push({
       ...file.transactions[0],
       type: RecordType.DATA,
-      reference: 'AC-1231', // same reference
+      reference: 'AC-1231', // same reference as transaction[0]
     });
     const result = analyze(file);
     expect(result.duplicates.duplicateReferences).toContain('AC-1231');
     expect(result.duplicates.duplicateAmountAccount.length).toBeGreaterThan(0);
   });
 
-  it('should generate warnings for large payments', () => {
+  it('should generate LARGE_PAYMENT warning for amounts above £1,000,000', () => {
     const file = createMockBacsFile();
-    file.transactions[0].amount = '0000100000000'; // £10,000.00? Wait 13 digits? But 100-byte uses 11 digits. We'll ignore length here for test.
+    // 100-byte amounts are 11 digits. 100,000,100 pence = £1,000,001.00
+    // → strictly greater than the £1,000,000 (100,000,000 pence) threshold.
+    file.transactions[0].amount = '00100000100';
     const result = analyze(file);
+    if (!result.warnings.some(w => w.code === 'LARGE_PAYMENT')) {
+      console.log('warnings:', JSON.stringify(result.warnings, null, 2));
+    }
     expect(result.warnings.some(w => w.code === 'LARGE_PAYMENT')).toBe(true);
   });
 });

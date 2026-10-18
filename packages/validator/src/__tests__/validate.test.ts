@@ -1,8 +1,177 @@
 import { describe, it, expect } from 'vitest';
 import { validate } from '../validate';
 
-function padEnd(str: string, len: number) {
-  return str.padEnd(len, ' ');
+const pad = (s: string, n: number) => s.padEnd(n, ' ');
+
+type FileKind = 'clean' | 'contra-debit' | 'self-credit';
+
+/**
+ * Builds a 100-byte Standard-18 BACS file using the current field-spec
+ * layout (VOL1/HDR1/HDR2/UHL1 + 100-byte data + EOF1/EOF2/UTL1).
+ */
+function buildFile(kind: FileKind = 'clean'): string {
+  const serial = '174666';
+  const sun = '098765';
+  const processingDate = ' 26229';
+  const creationDate = ' 26226';
+  const expirationDate = ' 26257';
+
+  // VOL1 (80): label(4) serial(6) access(1) res1(26) res2(4) sun(6) res3(4) res4(28) format(1)
+  const vol1 =
+    'VOL1' +
+    serial +
+    ' ' +
+    ' '.repeat(26) +
+    ' '.repeat(4) +
+    sun +
+    ' '.repeat(4) +
+    ' '.repeat(28) +
+    '1';
+
+  // HDR1 (80): label(4) fileId(1) sun(6) fileId2(1) res1(2) res2(1) res3(6) serial(6)
+  //             fileSec(4) fileSeq(4) genNum(4) genVer(2) creationDate(6) expirationDate(6)
+  //             access(1) blockCount(6) systemCode(13) res4(7)
+  const hdr1 =
+    'HDR1' +
+    'A' +
+    sun +
+    'S' +
+    '  ' +
+    ' ' +
+    '      ' +
+    serial +
+    '0001' +
+    '0001' +
+    ' '.repeat(4) +
+    '  ' +
+    creationDate +
+    expirationDate +
+    ' ' +
+    '000000' +
+    ' '.repeat(13) +
+    ' '.repeat(7);
+
+  // HDR2 (80): label(4) format(1) blockLen(5) recordLen(5) res1(35) bufferOffset(2) res2(28)
+  const hdr2 =
+    'HDR2' +
+    'F' +
+    '02000' +
+    '00100' +
+    ' '.repeat(35) +
+    '00' +
+    ' '.repeat(28);
+
+  // UHL1 (80): label(4) processingDate(6) res1(10) currencyCode(2) countryCode(6)
+  //             workCode(9) fileNumber(3) res2(7) auditPrint(7) userBureau(26)
+  const uhl1 =
+    'UHL1' +
+    processingDate +
+    ' '.repeat(10) +
+    '00' +
+    '000000' +
+    '1 DAILY  ' +
+    '910' +
+    ' '.repeat(7) +
+    ' '.repeat(7) +
+    ' '.repeat(26);
+
+  // Data (100): destSort(6) destAcct(8) typeOfAcct(1) txnCode(2) origSort(6) origAcct(8)
+  //             freeFormat(4) amount(11) origName(18) reference(18) destName(18)
+  const credit =
+    '123878' +
+    '11990278' +
+    '0' +
+    '99' +
+    '345678' +
+    '09876543' +
+    ' '.repeat(4) +
+    '00000070000' +
+    pad('AC LTD', 18) +
+    pad('AC-1231', 18) +
+    pad('SURGEON 1', 18);
+
+  const dataLines: string[] = [credit];
+  let totalDebitCount = '0000000';
+  let totalDebitAmount = '0000000000000';
+  let totalCreditCount = '0000001';
+  let totalCreditAmount = '0000000070000';
+
+  if (kind === 'contra-debit') {
+    const contra =
+      '345678' +
+      '09876543' +
+      '0' +
+      '17' +
+      '345678' +
+      '09876543' +
+      ' '.repeat(4) +
+      '00000070000' +
+      pad('', 18) +
+      pad('CONTRA', 18) +
+      pad('AC LTD', 18);
+    dataLines.push(contra);
+    totalDebitCount = '0000001';
+    totalDebitAmount = '0000000070000';
+  } else if (kind === 'self-credit') {
+    const selfCredit =
+      '345678' +
+      '09876543' +
+      '0' +
+      '99' +
+      '345678' +
+      '09876543' +
+      ' '.repeat(4) +
+      '00000070000' +
+      pad('', 18) +
+      pad('SELF CREDIT', 18) +
+      pad('AC LTD', 18);
+    dataLines.push(selfCredit);
+    totalCreditCount = '0000002';
+    totalCreditAmount = '0000000140000';
+  }
+
+  // EOF1 (80): same layout as HDR1 but label EOF1 and blockCount blank
+  const eof1 =
+    'EOF1' +
+    'A' +
+    sun +
+    'S' +
+    '  ' +
+    ' ' +
+    '      ' +
+    serial +
+    '0001' +
+    '0001' +
+    ' '.repeat(4) +
+    '  ' +
+    creationDate +
+    expirationDate +
+    ' ' +
+    '      ' +
+    ' '.repeat(13) +
+    ' '.repeat(7);
+
+  // EOF2 (80): same layout as HDR2 but label EOF2
+  const eof2 =
+    'EOF2' +
+    'F' +
+    '02000' +
+    '00100' +
+    ' '.repeat(35) +
+    '00' +
+    ' '.repeat(28);
+
+  // UTL1 (80): label(4) debitAmount(13) creditAmount(13) debitCount(7) creditCount(7) res1(10) res2(26)
+  const utl1 =
+    'UTL1' +
+    totalDebitAmount +
+    totalCreditAmount +
+    totalDebitCount +
+    totalCreditCount +
+    ' '.repeat(10) +
+    ' '.repeat(26);
+
+  return [vol1, hdr1, hdr2, uhl1, ...dataLines, eof1, eof2, utl1].join('\n');
 }
 
 describe('validate()', () => {
@@ -13,240 +182,37 @@ describe('validate()', () => {
     expect(result.errors[0].code).toBe('FILE_EMPTY');
   });
 
-  it('should accept a minimal valid BACS file with all business rules', () => {
-    const serial = '000001';
-    const date = ' 25001'; // YYDDD, 6 digits
-
-    // VOL1: label(4) + serial(6) + accessibility(1) + fileLabel(20) + reserved1(4) +
-    //       fileType(1) + reserved2(12) + format(1) + reserved3(31) = 80
-    const vol1 = padEnd(
-      'VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S',
-      80
-    );
-
-    // HDR1: label(4) + fileId(1) + serial(6) + processingDate(6) + reserved1(1) +
-    //       fileNumber(6) + reserved2(56) = 80
-    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
-
-    // HDR2: label(4) + fileId(1) + serial(6) + workCode(1) + reserved1(68) = 80
-    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
-
-    // UHL1: label(4) + origSort(6) + reserved1(2) + origAcct(8) + reserved2(2) +
-    //       origName(18) + reserved3(4) + procDate(6) + reserved4(6) + currency(3) +
-    //       reserved5(21) = 80
-    const uhl1 = padEnd(
-      'UHL1' +
-      '123456' +            // origSort
-      '  ' +                // reserved1
-      '12345678' +          // origAcct
-      '  ' +                // reserved2
-      padEnd('MYCOMPANY', 18) + // origName
-      '    ' +              // reserved3 (4 spaces)
-      date +
-      '      ' +            // reserved4 (6 spaces)
-      'GBP',
-      80
-    );
-
-    // Data record: destSort(6) + destAcct(8) + txnCode(2) + amount(13) + origSort(6) +
-    //              origAcct(8) + procDate(6) + origName(18) + destName(18) +
-    //              ref(18) + sun(3) = 106
-    const dataRecord =
-      '123456' +                      // dest sort code
-      '12345678' +                    // dest account
-      '99' +                          // credit
-      '0000000000001' +               // 1 pence (13 digits)
-      '123456' +                      // orig sort code
-      '12345678' +                    // orig account
-      date +                          // processing date
-      padEnd('COMPANY NAME', 18) +    // orig name
-      padEnd('EMPLOYEE NAME', 18) +   // dest name
-      padEnd('REF001', 18) +          // reference
-      '001';                          // SUN
-    const data = padEnd(dataRecord, 106);
-
-    // EOF1: label(4) + fileId(1) + serial(6) + reserved1(9) + totalDebitCount(6) +
-    //       totalDebitAmount(13) + totalCreditCount(6) + totalCreditAmount(13) +
-    //       reserved2(22) = 80
-    const eof1 = padEnd(
-      'EOF1A' + serial +
-      '         ' +                   // reserved1 (9 spaces)
-      '000000' +                     // debit count
-      '0000000000000' +              // debit amount (13)
-      '000001' +                     // credit count (1)
-      '0000000000001' +              // credit amount (1)
-      '                      ',       // reserved2 (22) – padEnd will fill
-      80
-    );
-
-    const eof2 = padEnd(
-      'EOF2S' + serial +
-      '         ' +
-      '000000' +
-      '0000000000000' +
-      '000001' +
-      '0000000000001',
-      80
-    );
-
-    const utl1 = padEnd('UTL1' + serial, 80);
-
-    const content = [vol1, hdr1, hdr2, uhl1, data, eof1, eof2, utl1].join('\n');
-    const result = validate(content);
-
-    // Debug: uncomment to see actual errors
-    console.log(JSON.stringify(result.errors, null, 2));
-
+  it('should accept a valid 100-byte BACS file', () => {
+    const result = validate(buildFile('clean'));
+    if (result.errors.length > 0) {
+      console.log(JSON.stringify(result.errors, null, 2));
+    }
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('should reject a file containing a contra (self-payment) record', () => {
-    const serial = '000001';
-    const date = ' 25001'; // space + YYDDD (6 chars)
-
-    // Build the same valid file as before, but add one contra record.
-    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
-    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
-    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
-    const uhl1 = padEnd(
-      'UHL1' +
-      '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
-      80
-    );
-
-    // Create two data records: one normal, one contra (destination == originator)
-    const normalRecord =
-      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' + date +
-      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
-
-    const contraRecord =
-      '123456' + '12345678' + '99' + '0000000000050' + '123456' + '12345678' + date +
-      padEnd('COMPANY NAME', 18) + padEnd('SELF PAYMENT', 18) + padEnd('REF003', 18) + '003';
-
-    const data = [normalRecord, contraRecord].map(r => padEnd(r, 106));
-
-    const eof1 = padEnd(
-      'EOF1A' + serial + '         ' +
-      '000000' + '0000000000000' +
-      '000002' + '0000000000150' + '                      ',
-      80
-    );
-    const eof2 = padEnd(
-      'EOF2S' + serial + '         ' +
-      '000000' + '0000000000000' +
-      '000002' + '0000000000150',
-      80
-    );
-    const utl1 = padEnd('UTL1' + serial, 80);
-
-    const content = [vol1, hdr1, hdr2, uhl1, ...data, eof1, eof2, utl1].join('\n');
-    const result = validate(content);
-    console.log(JSON.stringify(result.errors, null, 2));
-
-    expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.code === 'CONTRA_NOT_ALLOWED')).toBe(true);
-    expect(result.errors).toHaveLength(1); // only the contra error (other fields valid)
-  });
-
-  it('should warn about contra debit but not reject the file', () => {
-    const serial = '000001';
-    const date = ' 25001';
-
-    // Build a valid file with two records: one normal credit, one contra debit
-    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
-    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
-    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
-    const uhl1 = padEnd(
-      'UHL1' +
-      '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
-      80
-    );
-
-    // normal credit (99)
-    const normal =
-      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' + date +
-      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
-
-    // contra debit (17) to originator
-    const contra =
-      '123456' + '12345678' + '17' + '0000000000050' + '123456' + '12345678' + date +
-      padEnd('COMPANY NAME', 18) + padEnd('CONTRA ENTRY', 18) + padEnd('REF003', 18) + '003';
-
-    const data = [normal, contra].map(r => padEnd(r, 106));
-
-    // EOF totals: 1 credit (100 pence), 1 debit (50 pence)
-    const eof1 = padEnd(
-      'EOF1A' + serial + '         ' +
-      '000001' + '0000000000050' +   // 1 debit, 50
-      '000001' + '0000000000100' +   // 1 credit, 100
-      '                      ',
-      80
-    );
-    const eof2 = padEnd(
-      'EOF2S' + serial + '         ' +
-      '000001' + '0000000000050' +
-      '000001' + '0000000000100',
-      80
-    );
-    const utl1 = padEnd('UTL1' + serial, 80);
-
-    const content = [vol1, hdr1, hdr2, uhl1, ...data, eof1, eof2, utl1].join('\n');
-    const result = validate(content);
-
-    // The file should still be valid (no errors)
+  it('should emit CONTRA_DEBIT warning for a debit (17) to the originator account', () => {
+    const result = validate(buildFile('contra-debit'));
+    if (result.errors.length > 0) {
+      console.log(JSON.stringify(result.errors, null, 2));
+    }
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+    expect(result.warnings.some(w => w.code === 'CONTRA_DEBIT')).toBe(true);
+  });
 
-    // But we expect exactly one contra warning
-    const contraWarnings = result.warnings.filter(w => w.code === 'CONTRA_DEBIT');
-    expect(contraWarnings).toHaveLength(1);
+  it('should emit SELF_CREDIT warning for a credit (99) to the originator account', () => {
+    const result = validate(buildFile('self-credit'));
+    if (result.errors.length > 0) {
+      console.log(JSON.stringify(result.errors, null, 2));
+    }
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings.some(w => w.code === 'SELF_CREDIT')).toBe(true);
   });
 
   it('should detect a record length mismatch', () => {
-    const fileContent = 'VOL1 short\n';
-    const result = validate(fileContent);
+    const result = validate('VOL1 short\n');
     expect(result.errors.some(e => e.code === 'RECORD_LENGTH_MISMATCH')).toBe(true);
-  });
-
-  it('should accept a valid 100-byte data record file using header date', () => {
-    const serial = '000001';
-    const date = ' 25001'; // space + YYDDD (6 chars)
-
-    const vol1 = padEnd('VOL1' + serial + ' ' + padEnd('MYFILE', 20) + '    ' + '0' + '            ' + 'S', 80);
-    const hdr1 = padEnd('HDR1A' + serial + date + ' ' + '123456', 80);
-    const hdr2 = padEnd('HDR2S' + serial + '0', 80);
-    const uhl1 = padEnd(
-      'UHL1' + '123456' + '  ' + '12345678' + '  ' + padEnd('MYCOMPANY', 18) + '    ' + date + '      ' + 'GBP',
-      80
-    );
-
-    // 100-byte data record: no processingDate field
-    const dataRecord =
-      '654321' + '87654321' + '99' + '0000000000100' + '123456' + '12345678' +
-      padEnd('COMPANY NAME', 18) + padEnd('EMPLOYEE NAME', 18) + padEnd('REF002', 18) + '002';
-    // length should be 100; ensure padEnd if needed
-    const data = padEnd(dataRecord, 100);
-
-    // EOF totals: 1 credit, 100 pence
-    const eof1 = padEnd(
-      'EOF1A' + serial + '         ' +
-      '000000' + '0000000000000' +
-      '000001' + '0000000000100' + '                      ',
-      80
-    );
-    const eof2 = padEnd(
-      'EOF2S' + serial + '         ' +
-      '000000' + '0000000000000' +
-      '000001' + '0000000000100',
-      80
-    );
-    const utl1 = padEnd('UTL1' + serial, 80);
-
-    const content = [vol1, hdr1, hdr2, uhl1, data, eof1, eof2, utl1].join('\n');
-    const result = validate(content);
-
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { repair } from '../src/repair';
+import { repair } from '../repair';
 
 describe('repair', () => {
   it('should fix padding and lengths in a valid 100-byte file', () => {
